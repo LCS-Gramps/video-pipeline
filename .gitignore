@@ -1,0 +1,44 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# VS Code settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tokens and API keys
+.env
+token.pickle
+token.zip
+token (2).zip
+
+# Build artifacts
+*.mp4
+*.mov
+*.mp3
+*.zip
+*.odt
+
+# Logs
+logs/
+*.log
+
+# Assets not for versioning
+assets/*.mp4
+assets/*.mp3
+assets/*.png
+assets/*.otf
+
+# Processed data
+202*/**/rendered/
+202*/**/*.mp4
