@@ -111,5 +111,5 @@ def generate_montage_title(session_name: str) -> str:
     parts = session_name.split(".")
     year, month, day = map(int, parts[:3])
     suffix = f" Video {parts[3]}" if len(parts) > 3 else ""
-    date_str = datetime(year, month, day).strftime("%B %-d, %Y")
+    date_str = datetime(year, month, day).strftime("%B %d, %Y").replace(" 0", " ")
     return f"#Fortnite #Solo #Zerobuild #Highlights with Gramps from {date_str}{suffix}"

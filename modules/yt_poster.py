@@ -1,88 +1,103 @@
+"""
+yt_poster.py
+
+Handles video uploads to YouTube using the YouTube Data API.
+
+This module includes logic for setting titles, descriptions, tags, and
+privacy status. It integrates with description generation tools and supports
+automatic metadata based on the video type (e.g., montage).
+
+Requires authentication via OAuth 2.0 and expects a valid token.pickle file.
+
+Author: Llama Chile Shop
+"""
+
 import os
-import pickle, logging
-from pathlib import Path
-from datetime import datetime
-
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+from pathlib import Path   
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
-from modules.title_utils import get_output_filename, generate_montage_title
+from modules.title_utils import generate_montage_title, generate_output_filename
+from modules.description_utils import generate_montage_description
+from modules.config import DEBUG
 
-# Define OAuth scopes and token paths
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-TOKEN_PATH = Path("token.pickle")
-CLIENT_SECRETS_FILE = Path("client_secrets.json")
 
-def authenticate_youtube():
-    """Handles YouTube OAuth flow and returns a service client."""
-    creds = None
+def upload_video(file_path: Path, is_vertical: bool, stream_date: str, description: str = None, private: bool = DEBUG) -> str:
+    """
+    Uploads a video file to YouTube.
 
-    if TOKEN_PATH.exists():
-        with open(TOKEN_PATH, "rb") as token_file:
-            creds = pickle.load(token_file)
+    Args:
+        file_path (str): Full path to the rendered video file.
+        is_vertical (bool): True if video is vertical format (9:16), else widescreen (16:9).
+        stream_date (str): Date of the stream in YYYY.MM.DD or YYYY.MM.DD.N format.
 
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            if not CLIENT_SECRETS_FILE.exists():
-                raise FileNotFoundError("client_secrets.json not found.")
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(CLIENT_SECRETS_FILE), SCOPES
-            )
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_PATH, "wb") as token_file:
-            pickle.dump(creds, token_file)
+    Returns:
+        str: URL of the uploaded YouTube video.
+    """
+    try:
+        # Build title I have this:"and description
+        file_path = str(file_path)
+        session_name = Path(file_path).parents[1].name
+        title = generate_montage_title(session_name)
+        
+        if not description:
+            description = str(generate_montage_description())
 
-    return build("youtube", "v3", credentials=creds)
+        # Construct tags and privacy status
+        tags = ["Fortnite", "Zero Build", "Solo", "Gramps", "CoolHandGramps"]
+        privacy_status = "private" if private else "public"
 
-def generate_description(clip_path: Path, stream_date: datetime, is_montage: bool = False) -> str:
-    """Creates a dynamic and fun YouTube description."""
-    kill_count_guess = sum(word.isdigit() for word in clip_path.stem.split())
-    date_str = stream_date.strftime("%B %d, %Y")
+        # Authenticate
+        from authorize_youtube import get_authenticated_service
+        youtube = get_authenticated_service()
 
-    intro = "Gramps is back in Fortnite with another spicy highlight! 🦥"
-    if is_montage:
-        body = (
-            f"This reel features an outrageous compilation of top plays from our {date_str} stream.\n"
-            f"{kill_count_guess} eliminations of stupendous magnitude that must be seen to be believed!"
-        )
-    else:
-        body = (
-            f"Recorded live on {date_str}, this clip captures one of many wild moments "
-            "from the battlefield. Grab your popcorn. 🎮"
-        )
-
-    hashtags = "#Fortnite #Gaming #SeniorGamer #LlamaChileShop #EpicMoments"
-
-    return f"{intro}\n\n{body}\n\nSubscribe for more: https://youtube.com/@llamachileshop\n{hashtags}"
-
-def upload_to_youtube(video_path: Path, title: str, description: str, is_short: bool = False) -> str:
-    """Uploads the video to YouTube and returns the video URL."""
-    youtube = authenticate_youtube()
-
-    request_body = {
-        "snippet": {
-            "title": title,
-            "description": description,
-            "tags": ["Fortnite", "Gaming", "Senior Gamer", "LlamaChileShop"],
-            "categoryId": "20",  # Gaming
-        },
-        "status": {
-            "privacyStatus": "private",
-            "selfDeclaredMadeForKids": False,
+        body = {
+            "snippet": {
+                "title": title,
+                "description": description,
+                "tags": tags,
+                "categoryId": "20",  # Gaming
+            },
+            "status": {
+                "privacyStatus": privacy_status,
+                "selfDeclaredMadeForKids": False,
+            }
         }
-    }
 
-    media = MediaFileUpload(str(video_path), mimetype="video/mp4", resumable=True)
+        # media = MediaFileUpload(file_path, chunksize=-1, resumable=True)
+        media = MediaFileUpload(str(file_path), chunksize=-1, resumable=True)
 
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body=request_body,
-        media_body=media
-    )
+        if DEBUG:
+            print("🔍 DEBUGGING upload_video")
+            print(f"  • file_path: {file_path} ({type(file_path)})")
+            print(f"  • is_vertical: {is_vertical}")
+            print(f"  • stream_date: {stream_date}")
+            print(f"  • private: {private}")
+            print(f"  • title: {title}")
+            print(f"  • description: {description}")
+            print(f"  • tags: {tags}")
+            print(f"  • categoryId: {'20'} (should be int or str)")
 
-    response = request.execute()
-    video_id = response["id"]
-    return f"https://youtu.be/{video_id}"
+
+        request = youtube.videos().insert(
+            part="snippet,status",
+            body=body,
+            media_body=media
+        )
+
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+            if status:
+                print(f"🟡 Uploading: {int(status.progress() * 100)}%")
+
+        print(f"✅ Upload complete: https://youtu.be/{response['id']}")
+        return f"https://youtu.be/{response['id']}"
+
+    except HttpError as e:
+        print(f"❌ YouTube API error: {e}")
+        return ""
+
+    except Exception as e:
+        print(f"❌ Unexpected error during upload: {e}")
+        return ""

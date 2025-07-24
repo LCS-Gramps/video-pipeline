@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # debugging flag
-DEBUG = True
+DEBUG = os.getenv("DEBUG_MODE", "false").lower() == "true"
+
 
 # 🔧 Project Root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
