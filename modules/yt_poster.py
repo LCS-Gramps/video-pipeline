@@ -13,44 +13,44 @@ Author: Llama Chile Shop
 """
 
 import os
-from pathlib import Path   
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
-from modules.title_utils import generate_montage_title, generate_output_filename
+from modules.title_utils import generate_montage_title
 from modules.description_utils import generate_montage_description
 from modules.config import DEBUG
+from dotenv import load_dotenv
+from datetime import datetime
+from pathlib import Path
 
+load_dotenv()
 
 def upload_video(file_path: Path, is_vertical: bool, stream_date: str, description: str = None, private: bool = DEBUG) -> str:
     """
-    Uploads a video file to YouTube.
+    Uploads a video to YouTube, assigns to playlist, sets recording date, and optionally uploads a thumbnail.
 
     Args:
-        file_path (str): Full path to the rendered video file.
-        is_vertical (bool): True if video is vertical format (9:16), else widescreen (16:9).
-        stream_date (str): Date of the stream in YYYY.MM.DD or YYYY.MM.DD.N format.
+        file_path (Path): Full path to the rendered video file.
+        is_vertical (bool): True if video is vertical.
+        stream_date (str): Stream session date in YYYY.MM.DD[.N] format.
+        description (str): Optional description. Generated if None.
+        private (bool): If True, uploads as private (used for debug mode).
 
     Returns:
-        str: URL of the uploaded YouTube video.
+        str: YouTube video URL.
     """
     try:
-        # Build title I have this:"and description
-        file_path = str(file_path)
-        session_name = Path(file_path).parents[1].name
-        title = generate_montage_title(session_name)
-        
-        if not description:
-            description = str(generate_montage_description())
-
-        # Construct tags and privacy status
-        tags = ["Fortnite", "Zero Build", "Solo", "Gramps", "CoolHandGramps"]
-        privacy_status = "private" if private else "public"
-
-        # Authenticate
         from authorize_youtube import get_authenticated_service
         youtube = get_authenticated_service()
 
+        title = generate_montage_title(stream_date)
+        if not description:
+            description = generate_montage_description()
+
+        tags = ["Fortnite", "Zero Build", "Solo", "Gramps", "CoolHandGramps"]
+        privacy_status = "private" if private else "public"
+
+        # Upload video
         body = {
             "snippet": {
                 "title": title,
@@ -64,20 +64,8 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
             }
         }
 
-        # media = MediaFileUpload(file_path, chunksize=-1, resumable=True)
+        print(f"📤 Uploading to YouTube: {file_path.name}")
         media = MediaFileUpload(str(file_path), chunksize=-1, resumable=True)
-
-        if DEBUG:
-            print("🔍 DEBUGGING upload_video")
-            print(f"  • file_path: {file_path} ({type(file_path)})")
-            print(f"  • is_vertical: {is_vertical}")
-            print(f"  • stream_date: {stream_date}")
-            print(f"  • private: {private}")
-            print(f"  • title: {title}")
-            print(f"  • description: {description}")
-            print(f"  • tags: {tags}")
-            print(f"  • categoryId: {'20'} (should be int or str)")
-
 
         request = youtube.videos().insert(
             part="snippet,status",
@@ -91,8 +79,47 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
             if status:
                 print(f"🟡 Uploading: {int(status.progress() * 100)}%")
 
-        print(f"✅ Upload complete: https://youtu.be/{response['id']}")
-        return f"https://youtu.be/{response['id']}"
+        video_id = response["id"]
+        video_url = f"https://youtu.be/{video_id}"
+        print(f"✅ Upload complete: {video_url}")
+
+        # Add to playlist
+        playlist_id = os.getenv("YT_PLAYLIST_ID_SHORTS" if is_vertical else "YT_PLAYLIST_ID_CLIPS")
+        if playlist_id:
+            youtube.playlistItems().insert(
+                part="snippet",
+                body={
+                    "snippet": {
+                        "playlistId": playlist_id,
+                        "resourceId": {
+                            "kind": "youtube#video",
+                            "videoId": video_id
+                        }
+                    }
+                }
+            ).execute()
+            print(f"✅ Added to playlist: {playlist_id}")
+
+        # Set recording date
+        parts = stream_date.split(".")
+        date_obj = datetime(int(parts[0]), int(parts[1]), int(parts[2]))
+        recording_date = date_obj.strftime("%Y-%m-%dT00:00:00Z")
+
+        youtube.videos().update(
+            part="recordingDetails",
+            body={
+                "id": video_id,
+                "recordingDetails": {
+                    "recordingDate": recording_date
+                }
+            }
+        ).execute()
+        print(f"✅ Recording date set: {recording_date}")
+
+        # TODO: Thumbnail upload (stub)
+        # generate_thumbnail(file_path) → upload via thumbnails().set()
+
+        return video_url
 
     except HttpError as e:
         print(f"❌ YouTube API error: {e}")

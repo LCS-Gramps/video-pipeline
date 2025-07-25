@@ -22,6 +22,7 @@ from pathlib import Path
 from modules.config import DEBUG
 from modules.yt_poster import upload_video
 from modules.description_utils import generate_montage_description
+from authorize_youtube import get_authenticated_service
 
 
 def main():

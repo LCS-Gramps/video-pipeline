@@ -1,44 +1,59 @@
-# Byte-compiled / cache
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
+*.so
 
-# Virtual environment
+# Virtual environments
 .venv/
 env/
 venv/
+ENV/
 
-# VS Code settings
+# VSCode
 .vscode/
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Tokens and API keys
+# Environment variables and secrets
 .env
-token.pickle
-token.zip
-token (2).zip
-
-# Build artifacts
-*.mp4
-*.mov
-*.mp3
-*.zip
-*.odt
+client_secrets.json
 
 # Logs
-logs/
 *.log
 
-# Assets not for versioning
-assets/*.mp4
-assets/*.mp3
-assets/*.png
-assets/*.otf
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
 
-# Processed data
-202*/**/rendered/
-202*/**/*.mp4
+# Compiled C extensions
+*.c
+*.o
+*.obj
+*.dll
+*.a
+*.lib
+*.exp
+*.pdb
+
+# Test and coverage
+.coverage
+.tox/
+.nox/
+.cache/
+pytest_cache/
+htmlcov/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+MANIFEST
+
+# Misc
+*.bak
+*.swp
+*.tmp
