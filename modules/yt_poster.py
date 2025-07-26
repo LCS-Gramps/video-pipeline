@@ -18,7 +18,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 from modules.title_utils import generate_montage_title
 from modules.description_utils import generate_montage_description
-from modules.thumbnail_utils import generate_thumbnail
+from modules.thumbnail_utils import generate_thumbnail, generate_thumbnail_prompt
 from modules.config import DEBUG
 from dotenv import load_dotenv
 from datetime import datetime
@@ -85,9 +85,22 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
         video_url = f"https://youtu.be/{video_id}"
         print(f"✅ Upload complete: {video_url}")
 
-        # ✅ Thumbnail upload (widescreen only)
+        # ✅ Generate thumbnail if widescreen
         if not is_vertical:
-            thumbnail_path = generate_thumbnail(file_path)
+            # Load notes.txt if present
+            notes_file = file_path.with_name("notes.txt")
+            if notes_file.exists():
+                with open(notes_file, "r", encoding="utf-8") as f:
+                    notes_text = f.read().strip()
+            else:
+                notes_text = "A funny Fortnite moment with Gramps."
+
+            # Build prompt (future use for AI image generation)
+            thumbnail_prompt = generate_thumbnail_prompt(notes_text)
+            print(f"🧠 Thumbnail prompt: {thumbnail_prompt}")
+
+            # Generate local thumbnail via ffmpeg
+            thumbnail_path = generate_thumbnail(file_path, output_path=f"{file_path.stem}_thumb.jpg")
             if thumbnail_path:
                 youtube.thumbnails().set(
                     videoId=video_id,
