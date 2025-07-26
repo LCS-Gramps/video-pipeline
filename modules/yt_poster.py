@@ -18,6 +18,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 from modules.title_utils import generate_montage_title
 from modules.description_utils import generate_montage_description
+from modules.thumbnail_utils import generate_thumbnail
 from modules.config import DEBUG
 from dotenv import load_dotenv
 from datetime import datetime
@@ -40,6 +41,14 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
         str: YouTube video URL.
     """
     try:
+        thumbnail_path = generate_thumbnail(file_path)
+        if thumbnail_path:
+            youtube.thumbnails().set(
+                videoId=video_id,
+                media_body=str(thumbnail_path)
+            ).execute()
+            print("✅ Custom thumbnail generated and set.")
+        
         from authorize_youtube import get_authenticated_service
         youtube = get_authenticated_service()
 
@@ -83,6 +92,16 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
         video_url = f"https://youtu.be/{video_id}"
         print(f"✅ Upload complete: {video_url}")
 
+        # THEN:
+        if not is_vertical:
+            thumbnail_path = generate_thumbnail(file_path)
+            if thumbnail_path:
+                youtube.thumbnails().set(
+                    videoId=video_id,
+                    media_body=str(thumbnail_path)
+                ).execute()
+                print("✅ Custom thumbnail generated and set.")
+                
         # Add to playlist
         playlist_id = os.getenv("YT_PLAYLIST_ID_SHORTS" if is_vertical else "YT_PLAYLIST_ID_CLIPS")
         if playlist_id:
