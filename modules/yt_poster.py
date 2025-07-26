@@ -26,6 +26,7 @@ from pathlib import Path
 
 load_dotenv()
 
+
 def upload_video(file_path: Path, is_vertical: bool, stream_date: str, description: str = None, private: bool = DEBUG) -> str:
     """
     Uploads a video to YouTube, assigns to playlist, sets recording date, and optionally uploads a thumbnail.
@@ -41,14 +42,6 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
         str: YouTube video URL.
     """
     try:
-        thumbnail_path = generate_thumbnail(file_path)
-        if thumbnail_path:
-            youtube.thumbnails().set(
-                videoId=video_id,
-                media_body=str(thumbnail_path)
-            ).execute()
-            print("✅ Custom thumbnail generated and set.")
-        
         from authorize_youtube import get_authenticated_service
         youtube = get_authenticated_service()
 
@@ -92,7 +85,7 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
         video_url = f"https://youtu.be/{video_id}"
         print(f"✅ Upload complete: {video_url}")
 
-        # THEN:
+        # ✅ Thumbnail upload (widescreen only)
         if not is_vertical:
             thumbnail_path = generate_thumbnail(file_path)
             if thumbnail_path:
@@ -101,8 +94,8 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
                     media_body=str(thumbnail_path)
                 ).execute()
                 print("✅ Custom thumbnail generated and set.")
-                
-        # Add to playlist
+
+        # ✅ Add to playlist
         playlist_id = os.getenv("YT_PLAYLIST_ID_SHORTS" if is_vertical else "YT_PLAYLIST_ID_CLIPS")
         if playlist_id:
             youtube.playlistItems().insert(
@@ -119,7 +112,7 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
             ).execute()
             print(f"✅ Added to playlist: {playlist_id}")
 
-        # Set recording date
+        # ✅ Set recording date
         parts = stream_date.split(".")
         date_obj = datetime(int(parts[0]), int(parts[1]), int(parts[2]))
         recording_date = date_obj.strftime("%Y-%m-%dT00:00:00Z")
@@ -134,9 +127,6 @@ def upload_video(file_path: Path, is_vertical: bool, stream_date: str, descripti
             }
         ).execute()
         print(f"✅ Recording date set: {recording_date}")
-
-        # TODO: Thumbnail upload (stub)
-        # generate_thumbnail(file_path) → upload via thumbnails().set()
 
         return video_url
 
