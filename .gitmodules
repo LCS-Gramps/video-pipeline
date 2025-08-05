@@ -1,0 +1,3 @@
+[submodule "video-pipeline.wiki"]
+	path = video-pipeline.wiki
+	url = https://github.com/LCS-Gramps/video-pipeline.wiki.git
