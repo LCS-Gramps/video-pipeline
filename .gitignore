@@ -11,6 +11,9 @@ env/
 venv/
 ENV/
 
+# test data
+2025.06.20/
+
 # VSCode
 .vscode/
 
@@ -21,9 +24,12 @@ Thumbs.db
 # Environment variables and secrets
 .env
 client_secrets.json
+token.pickle
+description_gen.py
 
 # Logs
 *.log
+logs/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
